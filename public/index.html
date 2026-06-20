@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CrawlGuard API Demo</title>
+    <style>
+      :root {
+        --paper: #ffffff;
+        --page: #f4f4f1;
+        --ink: #1f2937;
+        --muted: #6b7280;
+        --line: #d1d5db;
+        --green: #166534;
+        --green-bg: #f0fdf4;
+        --red: #991b1b;
+        --red-bg: #fef2f2;
+        --blue: #1d4ed8;
+        --blue-bg: #eff6ff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--page);
+        color: var(--ink);
+        font-family: "Segoe UI", Arial, sans-serif;
+        line-height: 1.6;
+      }
+
+      main {
+        width: min(960px, calc(100% - 32px));
+        margin: 24px auto 48px;
+      }
+
+      .doc {
+        background: var(--paper);
+        border: 1px solid var(--line);
+      }
+
+      .hero,
+      .section,
+      .log-section {
+        padding: 24px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .log-section {
+        border-bottom: 0;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        font-size: 1.9rem;
+        margin-bottom: 8px;
+      }
+
+      h2 {
+        font-size: 1.2rem;
+        margin-bottom: 12px;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .endpoint {
+        border: 1px solid var(--line);
+        background: #fafafa;
+        padding: 16px;
+        margin-top: 16px;
+      }
+
+      .endpoint-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      .method {
+        display: inline-block;
+        min-width: 56px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: 700;
+        text-align: center;
+        font-size: 0.85rem;
+      }
+
+      .method.get {
+        color: var(--green);
+        background: var(--green-bg);
+      }
+
+      .method.post {
+        color: var(--blue);
+        background: var(--blue-bg);
+      }
+
+      code,
+      pre {
+        font-family: Consolas, "Courier New", monospace;
+      }
+
+      .path {
+        font-size: 0.98rem;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      button {
+        padding: 9px 14px;
+        border: 1px solid #9ca3af;
+        background: #fff;
+        color: var(--ink);
+        cursor: pointer;
+        font: inherit;
+      }
+
+      button:hover {
+        background: #f9fafb;
+      }
+
+      .response {
+        margin-top: 14px;
+        border: 1px solid var(--line);
+        background: #fff;
+      }
+
+      .response-header {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+        font-weight: 600;
+        background: #f9fafb;
+      }
+
+      .response-header.ok {
+        color: var(--green);
+        background: var(--green-bg);
+      }
+
+      .response-header.fail {
+        color: var(--red);
+        background: var(--red-bg);
+      }
+
+      .response pre {
+        margin: 0;
+        padding: 12px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+      }
+
+      .box {
+        border: 1px solid var(--line);
+        background: #fafafa;
+        padding: 14px;
+      }
+
+      .box h3 {
+        font-size: 1rem;
+        margin-bottom: 10px;
+      }
+
+      .box pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      #log {
+        min-height: 160px;
+        margin: 0;
+        padding: 12px;
+        border: 1px solid var(--line);
+        background: #fbfbfb;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      @media (max-width: 640px) {
+        main {
+          width: min(100% - 16px, 960px);
+          margin: 16px auto 24px;
+        }
+
+        .hero,
+        .section,
+        .log-section {
+          padding: 18px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article class="doc">
+        <section class="hero">
+          <h1>CrawlGuard API Demo</h1>
+          <p class="muted">
+            Plain request to the guarded API should fail. After solving the
+            challenge and verifying it, the same guarded API should succeed.
+            Every successful guarded call rotates the token, and the previous
+            token only survives for a 5-second grace window.
+          </p>
+        </section>
+
+        <section class="section">
+          <h2>1. Guarded API Direct Request</h2>
+          <div class="endpoint">
+            <div class="endpoint-head">
+              <span class="method get">GET</span>
+              <code class="path">/api/test/guarded-feed</code>
+            </div>
+            <p class="muted">
+              This is the endpoint you try first without any token. It should
+              return a failure response.
+            </p>
+            <div class="actions">
+              <button id="direct-button" type="button">Try direct request</button>
+            </div>
+            <div class="response">
+              <div class="response-header" id="direct-status">
+                No request yet
+              </div>
+              <pre id="direct-body">Click "Try direct request".</pre>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>2. Challenge Flow</h2>
+          <div class="endpoint">
+            <div class="endpoint-head">
+              <span class="method get">GET</span>
+              <code class="path">/api/challenge</code>
+            </div>
+            <div class="endpoint-head">
+              <span class="method post">POST</span>
+              <code class="path">/api/challenge/verify</code>
+            </div>
+            <p class="muted">
+              This step requests a challenge, solves it in the browser, verifies
+              it, stores the issued bearer token, and signs guarded requests
+              with a fresh timestamp and nonce each time. On success, the server
+              rotates the token automatically.
+            </p>
+            <div class="actions">
+              <button id="challenge-button" type="button">
+                Run challenge flow
+              </button>
+              <button id="token-button" type="button">
+                Call guarded API with signed request
+              </button>
+              <button id="clear-button" type="button">Clear log</button>
+            </div>
+          </div>
+
+          <div class="grid" style="margin-top: 16px">
+            <div class="box">
+              <h3>Challenge Response</h3>
+              <pre id="challenge-view">No challenge requested yet.</pre>
+            </div>
+            <div class="box">
+              <h3>Verify Response</h3>
+              <pre id="verify-view">No verification yet.</pre>
+            </div>
+            <div class="box">
+              <h3>Current Active Token</h3>
+              <pre id="token-view">No token yet.</pre>
+            </div>
+            <div class="box">
+              <h3>Last Signed Headers</h3>
+              <pre id="signature-view">No signed request yet.</pre>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>3. Guarded API After Challenge</h2>
+          <div class="endpoint">
+            <div class="endpoint-head">
+              <span class="method get">GET</span>
+              <code class="path">/api/test/guarded-feed</code>
+            </div>
+            <p class="muted">
+              This is the same guarded endpoint as above, but now it is called
+              with the token obtained from the challenge flow.
+            </p>
+            <div class="response">
+              <div class="response-header" id="success-status">
+                No request yet
+              </div>
+              <pre id="success-body">
+Run the challenge flow, then call the guarded API again.
+              </pre>
+            </div>
+          </div>
+        </section>
+
+        <section class="log-section">
+          <h2>Request Log</h2>
+          <pre id="log">Ready.</pre>
+        </section>
+      </article>
+    </main>
+
+    <script>
+      const directButton = document.getElementById("direct-button");
+      const challengeButton = document.getElementById("challenge-button");
+      const tokenButton = document.getElementById("token-button");
+      const clearButton = document.getElementById("clear-button");
+
+      const directStatus = document.getElementById("direct-status");
+      const directBody = document.getElementById("direct-body");
+      const successStatus = document.getElementById("success-status");
+      const successBody = document.getElementById("success-body");
+      const challengeView = document.getElementById("challenge-view");
+      const verifyView = document.getElementById("verify-view");
+      const tokenView = document.getElementById("token-view");
+      const signatureView = document.getElementById("signature-view");
+      const logView = document.getElementById("log");
+
+      let accessToken = "";
+      let activeTokenPolicy = null;
+
+      function writeLog(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        logView.textContent += `\n[${timestamp}] ${message}`;
+        logView.scrollTop = logView.scrollHeight;
+      }
+
+      function formatTokenPreview(payload, token) {
+        return JSON.stringify(
+          {
+            ...payload,
+            accessToken: `${token.slice(0, 48)}...`,
+          },
+          null,
+          2
+        );
+      }
+
+      function renderResponse(statusElement, bodyElement, status, payload) {
+        statusElement.textContent = `Status ${status}`;
+        statusElement.className =
+          "response-header " + (status >= 200 && status < 300 ? "ok" : "fail");
+        bodyElement.textContent = JSON.stringify(payload, null, 2);
+      }
+
+      async function fetchJsonWithStatus(url, options = {}) {
+        const response = await fetch(url, options);
+        const payload = await response.json();
+
+        return {
+          status: response.status,
+          ok: response.ok,
+          payload,
+        };
+      }
+
+      async function sha256Hex(value) {
+        const bytes = new TextEncoder().encode(value);
+        const digest = await crypto.subtle.digest("SHA-256", bytes);
+        return [...new Uint8Array(digest)]
+          .map((item) => item.toString(16).padStart(2, "0"))
+          .join("");
+      }
+
+      function createNonce() {
+        const bytes = new Uint8Array(12);
+        crypto.getRandomValues(bytes);
+        return [...bytes]
+          .map((item) => item.toString(16).padStart(2, "0"))
+          .join("");
+      }
+
+      async function hmacHex(key, value) {
+        const cryptoKey = await crypto.subtle.importKey(
+          "raw",
+          new TextEncoder().encode(key),
+          { name: "HMAC", hash: "SHA-256" },
+          false,
+          ["sign"]
+        );
+
+        const digest = await crypto.subtle.sign(
+          "HMAC",
+          cryptoKey,
+          new TextEncoder().encode(value)
+        );
+
+        return [...new Uint8Array(digest)]
+          .map((item) => item.toString(16).padStart(2, "0"))
+          .join("");
+      }
+
+      async function buildSignedHeaders({ token, method, path }) {
+        const timestamp = String(Date.now());
+        const nonce = createNonce();
+        const bodyHash = await sha256Hex("");
+        const input = [method.toUpperCase(), path, bodyHash, timestamp, nonce].join(
+          "\n"
+        );
+        const signature = await hmacHex(token, input);
+
+        const headers = {
+          Authorization: `Bearer ${token}`,
+          "x-cg-timestamp": timestamp,
+          "x-cg-nonce": nonce,
+          "x-cg-signature": signature,
+        };
+
+        signatureView.textContent = JSON.stringify(
+          {
+            method: method.toUpperCase(),
+            path,
+            bodyHash,
+            "x-cg-timestamp": timestamp,
+            "x-cg-nonce": nonce,
+            "x-cg-signature": signature,
+          },
+          null,
+          2
+        );
+
+        return headers;
+      }
+
+      async function solveChallenge(challenge) {
+        const target = "0".repeat(challenge.difficulty);
+        let nonce = 0;
+
+        while (true) {
+          const digest = await sha256Hex(
+            `${challenge.challengeId}:${challenge.salt}:${nonce}`
+          );
+
+          if (digest.startsWith(target)) {
+            writeLog(`Challenge solved with nonce ${nonce}.`);
+            return String(nonce);
+          }
+
+          nonce += 1;
+
+          if (nonce % 250 === 0) {
+            await new Promise((resolve) => requestAnimationFrame(resolve));
+          }
+        }
+      }
+
+      async function callGuardedDirectly() {
+        writeLog("Calling guarded API without token.");
+        const result = await fetchJsonWithStatus("/api/test/guarded-feed");
+        renderResponse(directStatus, directBody, result.status, result.payload);
+      }
+
+      async function callGuardedWithToken() {
+        if (!accessToken) {
+          throw new Error("Run the challenge flow first.");
+        }
+
+        writeLog("Calling guarded API with a fresh timestamp, nonce, and signature.");
+        const headers = await buildSignedHeaders({
+          token: accessToken,
+          method: "GET",
+          path: "/api/test/guarded-feed",
+        });
+        const result = await fetchJsonWithStatus("/api/test/guarded-feed", {
+          headers,
+        });
+
+        renderResponse(successStatus, successBody, result.status, result.payload);
+
+        if (result.ok && result.payload.rotation?.nextAccessToken) {
+          accessToken = result.payload.rotation.nextAccessToken;
+          tokenView.textContent = formatTokenPreview(
+            {
+              expiresAt: result.payload.rotation.nextExpiresAt,
+              previousTokenGraceUntil:
+                result.payload.rotation.previousTokenGraceUntil,
+              tokenPolicy: activeTokenPolicy,
+            },
+            accessToken
+          );
+          writeLog(
+            `Token rotated. Previous token grace until ${new Date(
+              result.payload.rotation.previousTokenGraceUntil
+            ).toLocaleTimeString()}.`
+          );
+        }
+      }
+
+      async function runChallengeFlow() {
+        challengeButton.disabled = true;
+
+        try {
+          writeLog("Requesting challenge.");
+          const challenge = await fetchJsonWithStatus("/api/challenge");
+          challengeView.textContent = JSON.stringify(challenge.payload, null, 2);
+
+          if (!challenge.ok) {
+            renderResponse(
+              successStatus,
+              successBody,
+              challenge.status,
+              challenge.payload
+            );
+            return;
+          }
+
+          const nonce = await solveChallenge(challenge.payload);
+
+          writeLog("Verifying challenge.");
+          const verify = await fetchJsonWithStatus("/api/challenge/verify", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              challengeId: challenge.payload.challengeId,
+              nonce,
+            }),
+          });
+
+          verifyView.textContent = JSON.stringify(verify.payload, null, 2);
+
+          if (!verify.ok) {
+            renderResponse(successStatus, successBody, verify.status, verify.payload);
+            return;
+          }
+
+          accessToken = verify.payload.accessToken;
+          activeTokenPolicy = verify.payload.tokenPolicy;
+          tokenView.textContent = formatTokenPreview(
+            {
+              expiresAt: verify.payload.expiresAt,
+              tokenPolicy: activeTokenPolicy,
+            },
+            accessToken
+          );
+
+          await callGuardedWithToken();
+        } catch (error) {
+          successStatus.textContent = "Client error";
+          successStatus.className = "response-header fail";
+          successBody.textContent = error.message;
+          writeLog(error.message);
+        } finally {
+          challengeButton.disabled = false;
+        }
+      }
+
+      directButton.addEventListener("click", async () => {
+        try {
+          await callGuardedDirectly();
+        } catch (error) {
+          directStatus.textContent = "Client error";
+          directStatus.className = "response-header fail";
+          directBody.textContent = error.message;
+          writeLog(error.message);
+        }
+      });
+
+      challengeButton.addEventListener("click", runChallengeFlow);
+
+      tokenButton.addEventListener("click", async () => {
+        try {
+          await callGuardedWithToken();
+        } catch (error) {
+          successStatus.textContent = "Client error";
+          successStatus.className = "response-header fail";
+          successBody.textContent = error.message;
+          writeLog(error.message);
+        }
+      });
+
+      clearButton.addEventListener("click", () => {
+        logView.textContent = "Ready.";
+      });
+    </script>
+  </body>
+</html>
